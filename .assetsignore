@@ -1,0 +1,6 @@
+.git/
+.github/
+functions/
+src/
+wrangler.jsonc
+schema.sql
