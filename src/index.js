@@ -10,6 +10,15 @@ const OPEN = 10 * 60;
 const CLOSE = 20 * 60;
 const STEP = 30;
 
+const GALLERY_SOURCES = {
+  '/assets/gallery-1.jpg': 'IMG_2778.HEIC',
+  '/assets/gallery-2.jpg': 'IMG_3485.HEIC',
+  '/assets/gallery-3.jpg': 'IMG_4593.HEIC',
+  '/assets/gallery-4.jpg': 'IMG_4902.HEIC',
+  '/assets/gallery-5.jpg': 'IMG_1889.HEIC',
+  '/assets/gallery-6.jpg': '373C02E5-D2C4-4C9D-BD5F-536D71361954.JPG'
+};
+
 function json(data, status = 200) {
   return Response.json(data, {
     status,
@@ -45,6 +54,30 @@ function weekday(date) {
 function isWeekend(date) {
   const day = weekday(date);
   return day === 0 || day === 6;
+}
+
+async function galleryImage(request, env, sourceName) {
+  const source = `https://raw.githubusercontent.com/parkerbatz/EMERALD-DETAILING-SITE/main/${sourceName}`;
+  const proxy = new URL('https://images.weserv.nl/');
+  proxy.searchParams.set('url', source);
+  proxy.searchParams.set('output', 'jpg');
+  proxy.searchParams.set('w', '1200');
+  proxy.searchParams.set('q', '82');
+
+  if (sourceName.endsWith('.JPG')) {
+    proxy.searchParams.set('crop', '1536,1024,0,0');
+    proxy.searchParams.set('fit', 'cover');
+  }
+
+  const response = await fetch(proxy.toString(), {
+    cf: { cacheTtl: 86400, cacheEverything: true }
+  });
+  if (!response.ok) return new Response('Gallery image unavailable.', { status: 502 });
+
+  const headers = new Headers(response.headers);
+  headers.set('Cache-Control', 'public, max-age=86400');
+  headers.set('Content-Type', 'image/jpeg');
+  return new Response(response.body, { status: response.status, headers });
 }
 
 async function availability(request, env) {
@@ -184,6 +217,11 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,POST,PATCH,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' } });
+
+    if (url.pathname in GALLERY_SOURCES && request.method === 'GET') {
+      return galleryImage(request, env, GALLERY_SOURCES[url.pathname]);
+    }
+
     if (url.pathname === '/api/availability' && request.method === 'GET') return availability(request, env);
     if (url.pathname === '/api/bookings' && request.method === 'POST') return createBooking(request, env);
     if (url.pathname === '/api/admin/bookings' && request.method === 'GET') return adminBookings(request, env);
