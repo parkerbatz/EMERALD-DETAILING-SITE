@@ -19,6 +19,35 @@ const GALLERY_SOURCES = {
   '/assets/gallery-6.jpg': '373C02E5-D2C4-4C9D-BD5F-536D71361954.JPG'
 };
 
+const BOOKING_SCHEMA = `
+CREATE TABLE IF NOT EXISTS bookings (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  vehicle TEXT NOT NULL,
+  vehicle_type TEXT NOT NULL CHECK (vehicle_type IN ('car','large')),
+  service TEXT NOT NULL,
+  service_date TEXT NOT NULL,
+  start_time TEXT NOT NULL,
+  end_time TEXT NOT NULL,
+  price INTEGER NOT NULL,
+  notes TEXT DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending','confirmed','cancelled','completed')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_bookings_date_status
+ON bookings(service_date, status);
+CREATE INDEX IF NOT EXISTS idx_bookings_date_time
+ON bookings(service_date, start_time);
+`;
+
+async function ensureDatabase(env) {
+  if (!env.DB) return false;
+  await env.DB.prepare(BOOKING_SCHEMA).run();
+  return true;
+}
+
 function json(data, status = 200) {
   return Response.json(data, {
     status,
@@ -81,7 +110,7 @@ async function galleryImage(request, env, sourceName) {
 }
 
 async function availability(request, env) {
-  if (!env.DB) return json({ error: 'Booking database is not connected yet.' }, 503);
+  if (!await ensureDatabase(env)) return json({ error: 'Booking database is not connected yet.' }, 503);
 
   const u = new URL(request.url);
   const date = u.searchParams.get('date');
@@ -119,7 +148,7 @@ async function availability(request, env) {
 }
 
 async function createBooking(request, env) {
-  if (!env.DB) return json({ error: 'Booking database is not connected yet.' }, 503);
+  if (!await ensureDatabase(env)) return json({ error: 'Booking database is not connected yet.' }, 503);
 
   let body;
   try { body = await request.json(); } catch { return json({ error: 'Invalid request.' }, 400); }
@@ -183,7 +212,7 @@ function authorized(request, env) {
 }
 
 async function adminBookings(request, env) {
-  if (!env.DB) return json({ error: 'Booking database is not connected yet.' }, 503);
+  if (!await ensureDatabase(env)) return json({ error: 'Booking database is not connected yet.' }, 503);
   if (!authorized(request, env)) return json({ error: 'Unauthorized.' }, 401);
   const u = new URL(request.url);
   const status = u.searchParams.get('status');
@@ -200,7 +229,7 @@ async function adminBookings(request, env) {
 }
 
 async function updateBooking(request, env) {
-  if (!env.DB) return json({ error: 'Booking database is not connected yet.' }, 503);
+  if (!await ensureDatabase(env)) return json({ error: 'Booking database is not connected yet.' }, 503);
   if (!authorized(request, env)) return json({ error: 'Unauthorized.' }, 401);
   const id = new URL(request.url).searchParams.get('id');
   if (!id) return json({ error: 'Booking ID is required.' }, 400);
