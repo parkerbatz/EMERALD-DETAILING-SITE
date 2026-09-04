@@ -16,7 +16,7 @@ function json(data, status = 200) {
     headers: {
       'Cache-Control': 'no-store',
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+      'Access-Control-Allow-Methods': 'GET,POST,PATCH,OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization'
     }
   });
@@ -143,12 +143,51 @@ async function createBooking(request, env) {
   return json({ ok: true, bookingId: id, price, endTime, status: 'pending' }, 201);
 }
 
+function authorized(request, env) {
+  const key = env.ADMIN_KEY;
+  if (!key) return false;
+  return request.headers.get('Authorization') === `Bearer ${key}`;
+}
+
+async function adminBookings(request, env) {
+  if (!env.DB) return json({ error: 'Booking database is not connected yet.' }, 503);
+  if (!authorized(request, env)) return json({ error: 'Unauthorized.' }, 401);
+  const u = new URL(request.url);
+  const status = u.searchParams.get('status');
+  const date = u.searchParams.get('date');
+  let query = `SELECT id,name,phone,vehicle,vehicle_type,service,service_date,start_time,end_time,price,notes,status,created_at FROM bookings`;
+  const clauses = [];
+  const binds = [];
+  if (status && ['pending','confirmed','cancelled','completed'].includes(status)) { clauses.push('status = ?'); binds.push(status); }
+  if (date && isValidDate(date)) { clauses.push('service_date = ?'); binds.push(date); }
+  if (clauses.length) query += ` WHERE ${clauses.join(' AND ')}`;
+  query += ` ORDER BY service_date ASC, start_time ASC, created_at ASC LIMIT 500`;
+  const result = await env.DB.prepare(query).bind(...binds).all();
+  return json({ bookings: result.results || [] });
+}
+
+async function updateBooking(request, env) {
+  if (!env.DB) return json({ error: 'Booking database is not connected yet.' }, 503);
+  if (!authorized(request, env)) return json({ error: 'Unauthorized.' }, 401);
+  const id = new URL(request.url).searchParams.get('id');
+  if (!id) return json({ error: 'Booking ID is required.' }, 400);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'Invalid request.' }, 400); }
+  const status = body?.status;
+  if (!['pending','confirmed','cancelled','completed'].includes(status)) return json({ error: 'Invalid booking status.' }, 400);
+  const result = await env.DB.prepare('UPDATE bookings SET status = ? WHERE id = ?').bind(status, id).run();
+  if (!result.meta?.changes) return json({ error: 'Booking not found.' }, 404);
+  return json({ ok: true, id, status });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' } });
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,POST,PATCH,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' } });
     if (url.pathname === '/api/availability' && request.method === 'GET') return availability(request, env);
     if (url.pathname === '/api/bookings' && request.method === 'POST') return createBooking(request, env);
+    if (url.pathname === '/api/admin/bookings' && request.method === 'GET') return adminBookings(request, env);
+    if (url.pathname === '/api/admin/bookings' && request.method === 'PATCH') return updateBooking(request, env);
     return env.ASSETS.fetch(request);
   }
 };
