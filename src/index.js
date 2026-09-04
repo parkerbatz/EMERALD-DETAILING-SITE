@@ -6,8 +6,8 @@ const SERVICES = {
   'Emerald Maintenance': { car: 100, large: 115, minutes: 210 }
 };
 
-const OPEN = 9 * 60;
-const CLOSE = 17 * 60;
+const OPEN = 10 * 60;
+const CLOSE = 20 * 60;
 const STEP = 30;
 
 function json(data, status = 200) {
@@ -42,6 +42,11 @@ function weekday(date) {
   return new Date(`${date}T12:00:00Z`).getUTCDay();
 }
 
+function isWeekend(date) {
+  const day = weekday(date);
+  return day === 0 || day === 6;
+}
+
 async function availability(request, env) {
   if (!env.DB) return json({ error: 'Booking database is not connected yet.' }, 503);
 
@@ -49,7 +54,7 @@ async function availability(request, env) {
   const date = u.searchParams.get('date');
   const service = u.searchParams.get('service');
   if (!isValidDate(date) || !SERVICES[service]) return json({ error: 'Valid date and service are required.' }, 400);
-  if (weekday(date) === 0 || date < localToday()) return json({ date, service, slots: [] });
+  if (!isWeekend(date) || date < localToday()) return json({ date, service, slots: [] });
 
   const result = await env.DB.prepare(`
     SELECT start_time, end_time
@@ -94,7 +99,7 @@ async function createBooking(request, env) {
   const svc = SERVICES[service];
   if (!svc || !['car', 'large'].includes(vehicleType)) return json({ error: 'Invalid service or vehicle type.' }, 400);
   if (!isValidDate(date) || !isValidTime(time)) return json({ error: 'Invalid date or time.' }, 400);
-  if (date < localToday() || weekday(date) === 0) return json({ error: 'That date is not available.' }, 400);
+  if (date < localToday() || !isWeekend(date)) return json({ error: 'That date is not available.' }, 400);
 
   const [hour, minute] = time.split(':').map(Number);
   const startMinutes = hour * 60 + minute;
