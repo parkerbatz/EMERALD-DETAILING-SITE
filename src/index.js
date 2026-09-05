@@ -49,45 +49,44 @@ async function ensureDatabase(env) {
 }
 
 async function sendBookingNotification(env, booking) {
-  const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER, BOOKING_NOTIFY_PHONE } = env;
-  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_FROM_NUMBER || !BOOKING_NOTIFY_PHONE) {
-    return;
-  }
+  const { RESEND_API_KEY, BOOKING_NOTIFY_EMAIL, RESEND_FROM_EMAIL } = env;
+  if (!RESEND_API_KEY || !BOOKING_NOTIFY_EMAIL || !RESEND_FROM_EMAIL) return;
 
-  const message = [
+  const text = [
     'NEW EMERALD BOOKING',
+    '',
     `${booking.service} — $${booking.price}`,
     `${booking.date} at ${booking.time}`,
+    '',
     `Customer: ${booking.name}`,
     `Vehicle: ${booking.vehicle}`,
     `Phone: ${booking.phone}`,
     `Status: Pending confirmation`,
+    '',
     'Open your Emerald admin dashboard to review.'
   ].join('\n');
 
-  const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(TWILIO_ACCOUNT_SID)}/Messages.json`;
-  const form = new URLSearchParams({
-    To: BOOKING_NOTIFY_PHONE,
-    From: TWILIO_FROM_NUMBER,
-    Body: message
-  });
-
-  const auth = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
   try {
-    const response = await fetch(endpoint, {
+    const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        Authorization: `Basic ${auth}`,
-        'Content-Type': 'application/x-www-form-urlencoded'
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json'
       },
-      body: form.toString()
+      body: JSON.stringify({
+        from: RESEND_FROM_EMAIL,
+        to: [BOOKING_NOTIFY_EMAIL],
+        subject: `New Emerald booking — ${booking.service} on ${booking.date}`,
+        text
+      })
     });
+
     if (!response.ok) {
       const detail = await response.text();
-      console.error('Booking SMS failed:', response.status, detail.slice(0, 500));
+      console.error('Booking email failed:', response.status, detail.slice(0, 500));
     }
   } catch (error) {
-    console.error('Booking SMS request failed:', error);
+    console.error('Booking email request failed:', error);
   }
 }
 
