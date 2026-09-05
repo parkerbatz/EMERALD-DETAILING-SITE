@@ -7,12 +7,5 @@
     "directory": ".",
     "binding": "ASSETS",
     "run_worker_first": ["/api/*"]
-  },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "emerald-bookings",
-      "database_id": "cf89bd03-78f4-4bc0-8a94-ddb012759c06"
-    }
-  ]
+  }
 }
