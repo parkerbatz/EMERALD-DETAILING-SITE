@@ -1,0 +1,81 @@
+/* Emerald Detailing Co. — mobile polish */
+@media (max-width: 520px) {
+  html { overflow-x: hidden; scroll-padding-top: 76px; }
+  body { overflow-x: hidden; }
+  .nav { padding-top: var(--safe-top); }
+  .navin { height: 64px; min-height: 64px; padding: 0 14px; gap: 12px; }
+  .brand { flex: 0 0 auto; }
+  .brand span { width: 64px; height: 34px; }
+  .nav .cta { flex: 0 0 auto; min-width: 104px; min-height: 42px; padding: 10px 13px; font-size: 10px; letter-spacing: .03em; }
+
+  .hero { min-height: calc(100svh - 64px); min-height: 620px; }
+  .hero-in { padding: 72px 18px 84px; }
+  .kicker { margin-bottom: 15px; font-size: 9px; letter-spacing: .14em; }
+  h1 { font-size: clamp(43px, 12vw, 62px); line-height: .91; letter-spacing: -.055em; }
+  .lead { max-width: 100%; font-size: 15px; line-height: 1.55; margin: 20px 0 25px; }
+  .actions { gap: 9px; }
+  .actions .cta, .actions .ghost { min-height: 48px; border-radius: 9px; }
+
+  .section { padding: 54px 17px; }
+  .eyebrow { font-size: 9px; letter-spacing: .18em; }
+  h2 { font-size: clamp(32px, 9vw, 44px); margin: 8px 0 12px; }
+  .sub { font-size: 13.5px; line-height: 1.6; }
+
+  .cards { margin-top: 27px; gap: 10px; }
+  .card { padding: 20px; border-radius: 12px; }
+  .num { font-size: 9px; }
+  .card h3 { font-size: 18px; margin: 14px 0 9px; }
+  .card p { font-size: 12.5px; line-height: 1.5; margin-bottom: 14px; }
+  .price { font-size: 21px; padding-top: 13px; }
+  .price span { display: block; margin-top: 3px; font-size: 10px; line-height: 1.35; }
+  .details-btn { min-height: 46px; margin-top: 10px; border-radius: 8px; }
+
+  .maintenance-card { margin-top: 10px; padding: 20px; gap: 15px; border-radius: 12px; }
+  .maintenance-card h3 { font-size: 20px; margin: 8px 0 7px; }
+  .maintenance-card p { font-size: 12.5px; line-height: 1.55; }
+  .maintenance-card .price { font-size: 21px; }
+  .featurebar { margin-top: 10px; padding: 18px; gap: 14px; border-radius: 12px; }
+  .featurebar strong { font-size: 14px; line-height: 1.35; }
+  .featurebar p { font-size: 11.5px; line-height: 1.5; }
+  .featurebar .ghost { min-height: 46px; }
+
+  .gallery { margin-top: 27px; gap: 10px; }
+  .gallery-item { border-radius: 10px; }
+  .gallery img { aspect-ratio: 4 / 3; }
+  .gallery-item.before-after img { transform: scale(1.18); }
+  .gallery-cta { margin-top: 30px; }
+  .gallery-cta .ghost { width: 100%; min-width: 0; min-height: 48px; }
+
+  .standardbox { padding: 22px 18px; border-radius: 12px; }
+  .points { margin-top: 19px; gap: 8px; }
+  .point { padding: 14px; font-size: 12px; line-height: 1.45; }
+  .point b { margin-bottom: 3px; }
+
+  .booking { padding: 22px 18px; gap: 19px; border-radius: 12px; }
+  .booking-note { font-size: 11.5px; line-height: 1.55; }
+  .booking-action .cta { min-height: 48px; }
+
+  .modal { padding: 10px; }
+  .modalbox { max-height: 90dvh; padding: 23px 18px calc(18px + var(--safe-bottom)); border-radius: 17px; }
+  .modalclose { top: 11px; right: 12px; width: 40px; height: 40px; }
+  .modalbox h3 { font-size: 23px; line-height: 1; margin: 8px 46px 8px 0; }
+  .modalprice { font-size: 19px; margin-bottom: 18px; }
+  .modalbox ul { gap: 7px; margin-bottom: 19px; }
+  .modalbox li { padding: 11px; font-size: 12px; line-height: 1.35; }
+  .modalnote { font-size: 11px; line-height: 1.5; margin-bottom: 17px; }
+
+  footer { padding: 36px 17px calc(24px + var(--safe-bottom)); }
+  .foot { gap: 22px; }
+  .footlinks { gap: 8px; font-size: 12px; }
+  .copyright { margin-top: 27px; padding-top: 17px; line-height: 1.5; }
+}
+
+@media (max-width: 360px) {
+  .navin { padding: 0 11px; }
+  .brand span { width: 59px; }
+  .nav .cta { min-width: 98px; padding-left: 10px; padding-right: 10px; }
+  .hero-in { padding-left: 15px; padding-right: 15px; }
+  .section { padding-left: 15px; padding-right: 15px; }
+  h1 { font-size: 42px; }
+  .card, .maintenance-card { padding-left: 17px; padding-right: 17px; }
+}
