@@ -96,7 +96,7 @@ function json(data, status = 200) {
     headers: {
       'Cache-Control': 'no-store',
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET,POST,PATCH,OPTIONS',
+      'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization'
     }
   });
@@ -304,10 +304,20 @@ async function updateBooking(request, env) {
   return json({ ok: true, id, status });
 }
 
+async function deleteBooking(request, env) {
+  if (!await ensureDatabase(env)) return json({ error: 'Booking database is not connected yet.' }, 503);
+  if (!authorized(request, env)) return json({ error: 'Unauthorized.' }, 401);
+  const id = new URL(request.url).searchParams.get('id');
+  if (!id) return json({ error: 'Booking ID is required.' }, 400);
+  const result = await env.DB.prepare("DELETE FROM bookings WHERE id = ? AND status = 'cancelled'").bind(id).run();
+  if (!result.meta?.changes) return json({ error: 'Only cancelled bookings can be deleted.' }, 409);
+  return json({ ok: true, id, deleted: true });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,POST,PATCH,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' } });
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' } });
 
     if (url.pathname in GALLERY_SOURCES && request.method === 'GET') {
       return galleryImage(request, env, GALLERY_SOURCES[url.pathname]);
@@ -317,6 +327,7 @@ export default {
     if (url.pathname === '/api/bookings' && request.method === 'POST') return createBooking(request, env, ctx);
     if (url.pathname === '/api/admin/bookings' && request.method === 'GET') return adminBookings(request, env);
     if (url.pathname === '/api/admin/bookings' && request.method === 'PATCH') return updateBooking(request, env);
+    if (url.pathname === '/api/admin/bookings' && request.method === 'DELETE') return deleteBooking(request, env);
     return env.ASSETS.fetch(request);
   }
 };
