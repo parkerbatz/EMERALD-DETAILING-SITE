@@ -48,6 +48,49 @@ async function ensureDatabase(env) {
   return true;
 }
 
+async function sendBookingNotification(env, booking) {
+  const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER, BOOKING_NOTIFY_PHONE } = env;
+  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_FROM_NUMBER || !BOOKING_NOTIFY_PHONE) {
+    return;
+  }
+
+  const message = [
+    'NEW EMERALD BOOKING',
+    `${booking.service} — $${booking.price}`,
+    `${booking.date} at ${booking.time}`,
+    `Customer: ${booking.name}`,
+    `Vehicle: ${booking.vehicle}`,
+    `Phone: ${booking.phone}`,
+    `Status: Pending confirmation`,
+    'Open your Emerald admin dashboard to review.'
+  ].join('\n');
+
+  const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(TWILIO_ACCOUNT_SID)}/Messages.json`;
+  const form = new URLSearchParams({
+    To: BOOKING_NOTIFY_PHONE,
+    From: TWILIO_FROM_NUMBER,
+    Body: message
+  });
+
+  const auth = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${auth}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: form.toString()
+    });
+    if (!response.ok) {
+      const detail = await response.text();
+      console.error('Booking SMS failed:', response.status, detail.slice(0, 500));
+    }
+  } catch (error) {
+    console.error('Booking SMS request failed:', error);
+  }
+}
+
 function json(data, status = 200) {
   return Response.json(data, {
     status,
@@ -147,7 +190,7 @@ async function availability(request, env) {
   return json({ date, service, duration_minutes: duration, slots });
 }
 
-async function createBooking(request, env) {
+async function createBooking(request, env, ctx) {
   if (!await ensureDatabase(env)) return json({ error: 'Booking database is not connected yet.' }, 503);
 
   let body;
@@ -184,23 +227,43 @@ async function createBooking(request, env) {
 
   const price = svc[vehicleType];
   const id = crypto.randomUUID();
-  await env.DB.prepare(`
-    INSERT INTO bookings
-      (id, name, phone, vehicle, vehicle_type, service, service_date, start_time, end_time, price, notes, status, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', datetime('now'))
-  `).bind(
+  const booking = {
     id,
-    String(name).trim().slice(0, 100),
-    String(phone).trim().slice(0, 30),
-    String(vehicle).trim().slice(0, 100),
+    name: String(name).trim().slice(0, 100),
+    phone: String(phone).trim().slice(0, 30),
+    vehicle: String(vehicle).trim().slice(0, 100),
     vehicleType,
     service,
     date,
     time,
     endTime,
     price,
-    String(notes).slice(0, 1000)
+    notes: String(notes).slice(0, 1000)
+  };
+
+  await env.DB.prepare(`
+    INSERT INTO bookings
+      (id, name, phone, vehicle, vehicle_type, service, service_date, start_time, end_time, price, notes, status, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', datetime('now'))
+  `).bind(
+    booking.id,
+    booking.name,
+    booking.phone,
+    booking.vehicle,
+    booking.vehicleType,
+    booking.service,
+    booking.date,
+    booking.time,
+    booking.endTime,
+    booking.price,
+    booking.notes
   ).run();
+
+  if (ctx?.waitUntil) {
+    ctx.waitUntil(sendBookingNotification(env, booking));
+  } else {
+    await sendBookingNotification(env, booking);
+  }
 
   return json({ ok: true, bookingId: id, price, endTime, status: 'pending' }, 201);
 }
@@ -243,7 +306,7 @@ async function updateBooking(request, env) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,POST,PATCH,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' } });
 
@@ -252,7 +315,7 @@ export default {
     }
 
     if (url.pathname === '/api/availability' && request.method === 'GET') return availability(request, env);
-    if (url.pathname === '/api/bookings' && request.method === 'POST') return createBooking(request, env);
+    if (url.pathname === '/api/bookings' && request.method === 'POST') return createBooking(request, env, ctx);
     if (url.pathname === '/api/admin/bookings' && request.method === 'GET') return adminBookings(request, env);
     if (url.pathname === '/api/admin/bookings' && request.method === 'PATCH') return updateBooking(request, env);
     return env.ASSETS.fetch(request);
