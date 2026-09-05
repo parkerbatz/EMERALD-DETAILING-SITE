@@ -314,6 +314,22 @@ async function deleteBooking(request, env) {
   return json({ ok: true, id, deleted: true });
 }
 
+async function serveSite(request, env) {
+  const response = await env.ASSETS.fetch(request);
+  const url = new URL(request.url);
+  const isHome = request.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html');
+  const type = response.headers.get('Content-Type') || '';
+  if (!isHome || !type.includes('text/html')) return response;
+
+  const html = await response.text();
+  const polished = html.replace('</head>', '<link rel="stylesheet" href="/mobile-polish.css"><meta name="format-detection" content="telephone=no"></head>');
+  const headers = new Headers(response.headers);
+  headers.delete('Content-Length');
+  headers.set('Content-Type', 'text/html; charset=UTF-8');
+  headers.set('Cache-Control', 'no-cache');
+  return new Response(polished, { status: response.status, statusText: response.statusText, headers });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -328,6 +344,6 @@ export default {
     if (url.pathname === '/api/admin/bookings' && request.method === 'GET') return adminBookings(request, env);
     if (url.pathname === '/api/admin/bookings' && request.method === 'PATCH') return updateBooking(request, env);
     if (url.pathname === '/api/admin/bookings' && request.method === 'DELETE') return deleteBooking(request, env);
-    return env.ASSETS.fetch(request);
+    return serveSite(request, env);
   }
 };
