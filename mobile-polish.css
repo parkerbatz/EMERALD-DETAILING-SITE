@@ -1,4 +1,29 @@
 /* Emerald Detailing Co. — mobile polish */
+
+/* Keep the three Worker-injected gallery photos the same size/grid as the existing gallery. */
+#gallery > .gallery-item {
+  display: inline-block;
+  vertical-align: top;
+  width: calc((100% - 24px) / 3);
+  aspect-ratio: 1 / 1;
+  margin-top: 12px;
+  margin-right: 12px;
+}
+#gallery > .gallery-item:nth-last-child(2) { margin-right: 0; }
+#gallery > .gallery-item img {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  object-fit: cover;
+  display: block;
+}
+
+@media (max-width: 850px) {
+  #gallery > .gallery-item {
+    width: calc((100% - 12px) / 2);
+  }
+}
+
 @media (max-width: 520px) {
   html { overflow-x: hidden; scroll-padding-top: 76px; }
   body { overflow-x: hidden; }
@@ -43,6 +68,13 @@
   .gallery-item { border-radius: 10px; }
   .gallery img { aspect-ratio: 4 / 3; }
   .gallery-item.before-after img { transform: scale(1.18); }
+  #gallery > .gallery-item {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    margin-top: 10px;
+    margin-right: 0;
+  }
   .gallery-cta { margin-top: 30px; }
   .gallery-cta .ghost { width: 100%; min-width: 0; min-height: 48px; }
 
