@@ -16,7 +16,10 @@ const GALLERY_SOURCES = {
   '/assets/gallery-3.jpg': 'IMG_4593.HEIC',
   '/assets/gallery-4.jpg': 'IMG_4902.HEIC',
   '/assets/gallery-5.jpg': 'IMG_1889.HEIC',
-  '/assets/gallery-6.jpg': '373C02E5-D2C4-4C9D-BD5F-536D71361954.JPG'
+  '/assets/gallery-6.jpg': '373C02E5-D2C4-4C9D-BD5F-536D71361954.JPG',
+  '/assets/gallery-7.jpg': 'IMG_5175.HEIC',
+  '/assets/gallery-8.jpg': 'IMG_5146.HEIC',
+  '/assets/gallery-9.jpg': 'IMG_5123.HEIC'
 };
 
 const BOOKING_SCHEMA = `
@@ -322,7 +325,9 @@ async function serveSite(request, env) {
   if (!isHome || !type.includes('text/html')) return response;
 
   const html = await response.text();
-  const polished = html.replace('</head>', '<link rel="stylesheet" href="/mobile-polish.css"><meta name="format-detection" content="telephone=no"></head>');
+  const galleryAdditions = '<div class="gallery-item"><img src="/assets/gallery-7.jpg" alt="Emerald Detailing Co. white Toyota 4Runner exterior detail"></div><div class="gallery-item"><img src="/assets/gallery-8.jpg" alt="Emerald Detailing Co. Toyota 4Runner wheel and exterior detail"></div><div class="gallery-item"><img src="/assets/gallery-9.jpg" alt="Emerald Detailing Co. Toyota 4Runner cargo area detail"></div>';
+  const withGallery = html.replace('<div class="gallery-cta">', `${galleryAdditions}<div class="gallery-cta">`);
+  const polished = withGallery.replace('</head>', '<link rel="stylesheet" href="/mobile-polish.css"><meta name="format-detection" content="telephone=no"></head>');
   const headers = new Headers(response.headers);
   headers.delete('Content-Length');
   headers.set('Content-Type', 'text/html; charset=UTF-8');
