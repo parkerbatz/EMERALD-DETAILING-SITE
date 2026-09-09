@@ -26,6 +26,21 @@ jobs:
         uses: actions/checkout@v6
       - name: Setup Pages
         uses: actions/configure-pages@v5
+      - name: Convert HEIC photos to browser-compatible JPGs
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libheif-examples
+          find . -type f \( -iname "*.heic" -o -iname "*.heif" \) -print0 | while IFS= read -r -d '' file; do
+            output="${file%.*}.jpg"
+            heif-convert "$file" "$output"
+          done
+          if [ -f "IMG_2778.jpg" ]; then
+            cp "IMG_2778.jpg" "assets/interior-cover.jpg"
+          fi
+          if [ -f "index.html" ]; then
+            sed -i 's#IMG_2778\.HEIC#assets/interior-cover.jpg#g' index.html
+          fi
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:
