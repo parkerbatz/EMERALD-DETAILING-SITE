@@ -30,11 +30,13 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y libheif-examples
+          sudo apt-get install -y libheif-examples libheif-plugin-libde265
+          set +e
           find . -type f \( -iname "*.heic" -o -iname "*.heif" \) -print0 | while IFS= read -r -d '' file; do
             output="${file%.*}.jpg"
-            heif-convert "$file" "$output"
+            heif-convert "$file" "$output" || echo "Skipping unsupported HEIC: $file"
           done
+          set -e
           if [ -f "IMG_2778.jpg" ]; then
             cp "IMG_2778.jpg" "assets/interior-cover.jpg"
           fi
