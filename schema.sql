@@ -19,3 +19,8 @@ ON bookings(service_date, status);
 
 CREATE INDEX IF NOT EXISTS idx_bookings_date_time
 ON bookings(service_date, start_time);
+
+CREATE TABLE IF NOT EXISTS blocked_days (
+  service_date TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
