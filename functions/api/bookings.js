@@ -14,6 +14,7 @@ export async function onRequestPost(context){
  if(selected<todayOnly)return json({error:'That date has already passed.'},400);
  if(selected.getDay()===0)return json({error:'Emerald Detailing is closed on Sundays.'},400);
  try{
+  await db.prepare(`CREATE TABLE IF NOT EXISTS blocked_days (service_date TEXT PRIMARY KEY, created_at TEXT NOT NULL DEFAULT (datetime('now')) )`).run();
   const blocked=await db.prepare(`SELECT service_date FROM blocked_days WHERE service_date=?`).bind(date).first();
   if(blocked)return json({error:'That date is unavailable. Please choose another date.'},409);
  }catch(e){return json({error:'We could not verify that date is available. Please try again.'},503)}
