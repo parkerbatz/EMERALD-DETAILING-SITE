@@ -25,4 +25,14 @@ export async function onRequestPatch({request,env}){
   if(!result.success || !result.meta?.changes) return json({error:'Booking not found.'},404);
   return json({ok:true,id,status});
 }
+
+export async function onRequestDelete({request,env}){
+  if(!authorized(request,env)) return json({error:'Unauthorized'},401);
+  if(!env.DB) return json({error:'Booking database is not connected yet.'},503);
+  const id=new URL(request.url).searchParams.get('id')||'';
+  if(!id)return json({error:'Booking id is required.'},400);
+  const result=await env.DB.prepare(`DELETE FROM bookings WHERE id=? AND status='cancelled'`).bind(id).run();
+  if(!result.success || !result.meta?.changes)return json({error:'Cancelled booking not found.'},404);
+  return json({ok:true,id});
+}
 export function onRequestOptions(){return new Response(null,{status:204});}
