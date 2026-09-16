@@ -13,6 +13,11 @@ export async function onRequestPost(context){
  const selected=new Date(`${date}T12:00:00`);const now=new Date();const today=new Date(now.toLocaleString('en-US',{timeZone:'America/Chicago'}));const todayOnly=new Date(today.getFullYear(),today.getMonth(),today.getDate());
  if(selected<todayOnly)return json({error:'That date has already passed.'},400);
  if(selected.getDay()===0)return json({error:'Emerald Detailing is closed on Sundays.'},400);
+ try{
+  await db.prepare(`CREATE TABLE IF NOT EXISTS blocked_days (service_date TEXT PRIMARY KEY, created_at TEXT NOT NULL DEFAULT (datetime('now')) )`).run();
+  const blocked=await db.prepare(`SELECT service_date FROM blocked_days WHERE service_date=?`).bind(date).first();
+  if(blocked)return json({error:'That date is unavailable. Please choose another date.'},409);
+ }catch(e){}
  const startMin=toMin(time);const endMin=startMin+svc.minutes;
  if(startMin<OPEN||endMin>CLOSE||startMin%30!==0)return json({error:'That appointment time is outside the available schedule.'},400);
  const endTime=hm(endMin);
