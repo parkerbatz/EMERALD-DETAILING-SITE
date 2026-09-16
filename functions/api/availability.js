@@ -27,7 +27,9 @@ export async function onRequestGet({request,env}) {
     await env.DB.prepare(`CREATE TABLE IF NOT EXISTS blocked_days (service_date TEXT PRIMARY KEY, created_at TEXT NOT NULL DEFAULT (datetime('now')) )`).run();
     const blocked = await env.DB.prepare(`SELECT service_date FROM blocked_days WHERE service_date=?`).bind(date).first();
     if (blocked) return json({date,service,slots:[],blocked:true});
-  } catch(e) {}
+  } catch(e) {
+    return json({error:'We could not verify availability. Please try again.'},503);
+  }
   const result = await env.DB.prepare(`SELECT start_time,end_time FROM bookings WHERE service_date=? AND status IN ('pending','confirmed') ORDER BY start_time`).bind(date).all();
   const busy=result.results||[];
   const duration=SERVICES[service];
