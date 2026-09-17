@@ -51,6 +51,21 @@ async function ensureDatabase(env) {
   return true;
 }
 
+async function ensureBlockedDaysTable(env) {
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS blocked_days (
+      service_date TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `).run();
+}
+
+async function isBlockedDay(env, date) {
+  await ensureBlockedDaysTable(env);
+  const row = await env.DB.prepare('SELECT service_date FROM blocked_days WHERE service_date = ?').bind(date).first();
+  return !!row;
+}
+
 async function sendBookingNotification(env, booking) {
   const { RESEND_API_KEY, BOOKING_NOTIFY_EMAIL, RESEND_FROM_EMAIL } = env;
   if (!RESEND_API_KEY || !BOOKING_NOTIFY_EMAIL || !RESEND_FROM_EMAIL) return;
@@ -162,6 +177,7 @@ async function availability(request, env) {
   const service = u.searchParams.get('service');
   if (!isValidDate(date) || !SERVICES[service]) return json({ error: 'Valid date and service are required.' }, 400);
   if (!isWeekend(date) || date < localToday()) return json({ date, service, slots: [] });
+  if (await isBlockedDay(env, date)) return json({ date, service, duration_minutes: SERVICES[service].minutes, slots: [], blocked: true });
 
   const result = await env.DB.prepare(`
     SELECT start_time, end_time
@@ -207,6 +223,7 @@ async function createBooking(request, env, ctx) {
   if (!svc || !['car', 'large'].includes(vehicleType)) return json({ error: 'Invalid service or vehicle type.' }, 400);
   if (!isValidDate(date) || !isValidTime(time)) return json({ error: 'Invalid date or time.' }, 400);
   if (date < localToday() || !isWeekend(date)) return json({ error: 'That date is not available.' }, 400);
+  if (await isBlockedDay(env, date)) return json({ error: 'That date is unavailable. Please choose another date.' }, 409);
 
   const [hour, minute] = time.split(':').map(Number);
   const startMinutes = hour * 60 + minute;
@@ -293,6 +310,36 @@ async function adminBookings(request, env) {
   return json({ bookings: result.results || [] });
 }
 
+async function adminBlockedDays(request, env) {
+  if (!await ensureDatabase(env)) return json({ error: 'Booking database is not connected yet.' }, 503);
+  if (!authorized(request, env)) return json({ error: 'Unauthorized.' }, 401);
+  await ensureBlockedDaysTable(env);
+
+  if (request.method === 'GET') {
+    const result = await env.DB.prepare('SELECT service_date,created_at FROM blocked_days ORDER BY service_date').all();
+    return json({ blockedDays: result.results || [] });
+  }
+
+  if (request.method === 'POST') {
+    let body;
+    try { body = await request.json(); } catch { return json({ error: 'Invalid JSON.' }, 400); }
+    const date = String(body?.date || '');
+    if (!isValidDate(date)) return json({ error: 'A valid date is required.' }, 400);
+    await env.DB.prepare('INSERT OR IGNORE INTO blocked_days (service_date) VALUES (?)').bind(date).run();
+    return json({ ok: true, date }, 201);
+  }
+
+  if (request.method === 'DELETE') {
+    const date = new URL(request.url).searchParams.get('date') || '';
+    if (!isValidDate(date)) return json({ error: 'A valid date is required.' }, 400);
+    const result = await env.DB.prepare('DELETE FROM blocked_days WHERE service_date = ?').bind(date).run();
+    if (!result.meta?.changes) return json({ error: 'Blocked date not found.' }, 404);
+    return json({ ok: true, date });
+  }
+
+  return json({ error: 'Method not allowed.' }, 405);
+}
+
 async function updateBooking(request, env) {
   if (!await ensureDatabase(env)) return json({ error: 'Booking database is not connected yet.' }, 503);
   if (!authorized(request, env)) return json({ error: 'Unauthorized.' }, 401);
@@ -349,6 +396,7 @@ export default {
     if (url.pathname === '/api/admin/bookings' && request.method === 'GET') return adminBookings(request, env);
     if (url.pathname === '/api/admin/bookings' && request.method === 'PATCH') return updateBooking(request, env);
     if (url.pathname === '/api/admin/bookings' && request.method === 'DELETE') return deleteBooking(request, env);
+    if (url.pathname === '/api/blocked-days' && ['GET','POST','DELETE'].includes(request.method)) return adminBlockedDays(request, env);
     return serveSite(request, env);
   }
 };
